@@ -1,15 +1,13 @@
 # 🐒 Chimpi Find My Kids
 
-Aplicativo Android de **demonstração** para pedir ajuda a familiares
+**Prévia experimental do app infantil Android**
 
-⚠️ **PRÉVIA DE TESTES, NÃO É UM SISTEMA DE EMERGÊNCIA CERTIFICADO**
+APK de testes em [Releases](../../releases) após compilação automática
 
-- A criança pode escrever o que aconteceu, escolher o nível e preparar SMS para contatos autorizados
-- É necessário conferir os destinatários e tocar em **Enviar** no app de mensagens
-- O app **não envia mensagens automaticamente**, não aciona a polícia e não confirma entrega
-- Sem internet, SMS depende de sinal de operadora
-- Em perigo imediato, ligue **190**
+Funções: mensagem livre, 3 níveis de SOS, até 6 contatos familiares, SMS preparado manualmente, localização opcional, contagem cancelável e referências de delegacias
 
-Os APKs de teste serão disponibilizados em [Releases](../../releases) após compilação automática no GitHub Actions
+⚠️ Nenhum SMS é enviado automaticamente, nenhum pedido à polícia é registrado, nenhum alerta é entregue remotamente por este app sem o envio manual da mensagem
 
-Consulte `PRIVACIDADE.md` e `LIMITACOES.md` antes de instalar
+Em emergência, ligue **190**
+
+`gradle :app:assembleDebug` (Java 17, Gradle 8.9, SDK 35)
