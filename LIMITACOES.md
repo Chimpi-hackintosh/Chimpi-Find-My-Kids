@@ -19,3 +19,13 @@ Este APK é uma compilação de **teste debug**, não substitui ligações telef
 - A chave fica salva no armazenamento privado do aplicativo de testes; não há recuperação segura nem hardware-backed keystore nesta versão
 - Envio SOS automático para polícia NÃO implementado
 - Não dependa apenas deste software para emergências
+
+## SMS por chip (prévia 1.2)
+
+- A criança pode enviar SMS a até seis números de confiança cadastrados, somente depois de confirmação explícita na interface
+- O SMS pode custar dinheiro e cada fragmento de uma mensagem longa pode ser cobrado separadamente
+- A API de envio não certifica que a operadora entregou a mensagem nem que uma pessoa recebeu/visualizou
+- Android com mais de um chip pode precisar de configuração do SIM padrão para SMS
+- Sem cobertura da operadora, chip habilitado e envio internacional, não há comunicação com o Reino Unido
+- O conteúdo enviado não é criptografado de ponta a ponta pela operadora, portanto evite detalhes sensíveis desnecessários
+- O recurso exige permissão sensível SEND_SMS, sujeita a regras estritas da Google Play

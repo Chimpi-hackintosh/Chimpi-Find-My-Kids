@@ -33,14 +33,14 @@ public class MainActivity extends Activity {
  title(root,"Família autorizada");
  for(int i=0;i<6;i++){EditText f=new EditText(this);f.setHint(kin[i]+" (DDD + telefone)");f.setInputType(InputType.TYPE_CLASS_PHONE);f.setSingleLine(true);f.setText(getPreferences(MODE_PRIVATE).getString("c"+i,""));contacts[i]=f;root.addView(f);}
  button(root,"💾 Salvar números",0xff2458e7).setOnClickListener(v->save());
- title(root,"Pedir ajuda");setupWifi(root);
+ title(root,"Pedir ajuda");setupSmsChip(root);setupWifi(root);
  button(root,"🆘 PREPARAR SMS",0xffc92b46).setOnClickListener(v->prepare());
  note(root,"IMPORTANTE: abre seu app de mensagens; é necessário conferir os destinatários e tocar em ENVIAR");
  hold=button(root,"✋ SEGURE 2s, DEPOIS SOLTE",0xff2458e7);
  hold.setOnTouchListener((v,e)->{if(e.getActionMasked()==0){pressed=SystemClock.elapsedRealtime();hold.setText("Solte para iniciar SOS");return true;}
  if(e.getActionMasked()==1){hold.setText("✋ SEGURE 2s, DEPOIS SOLTE");if(SystemClock.elapsedRealtime()-pressed>=2000&&!active)count();return true;}
  if(e.getActionMasked()==3){hold.setText("✋ SEGURE 2s, DEPOIS SOLTE");return true;}return false;});
- note(root,"Após soltar, 8 segundos para cancelar antes de ABRIR o aplicativo SMS");
+ note(root,"Após soltar, 8 segundos para cancelar antes de enviar pelo Wi-Fi local. Para avisar familiares distantes, use o botão SOS por chip");
  cancel=button(root,"Cancelar contagem",0xff64748b);cancel.setVisibility(View.GONE);cancel.setOnClickListener(v->stop());
  status=new TextView(this);status.setText("Nenhuma mensagem preparada");root.addView(status);
  title(root,"Polícia local • referências");
@@ -49,7 +49,7 @@ public class MainActivity extends Activity {
  button(root,"📍 "+place,0xff2458e7).setOnClickListener(v->new AlertDialog.Builder(this).setMessage(place+"\nVerifique o endereço antes de ir").setPositiveButton("Mapas",(d,w)->{
  try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("geo:0,0?q="+Uri.encode(place))));}catch(Exception ignored){}
  }).setNeutralButton("190",(d,w)->dial()).setNegativeButton("Fechar",null).show());}
- note(root,"Sem aviso automático aos parentes ou à polícia. Mensagens SMS exigem rede celular; alarmes remotos não funcionam sem conexão");
+ note(root,"SOS por chip: SMS para familiares cadastrados, inclusive internacionais se a operadora permitir. O envio não confirma entrega. Em perigo imediato, ligue 190");
  }
  void save(){SharedPreferences.Editor e=getPreferences(MODE_PRIVATE).edit();for(int i=0;i<6;i++)e.putString("c"+i,contacts[i].getText().toString().trim());e.apply();}
  String loc(){if(!gps.isChecked())return "Localização não compartilhada";
@@ -70,7 +70,12 @@ public class MainActivity extends Activity {
  void stop(){active=false;if(run!=null)h.removeCallbacks(run);if(cancel!=null)cancel.setVisibility(View.GONE);if(status!=null)status.setText("Cancelado, nenhuma mensagem enviada");}
  @Override protected void onDestroy(){stop();super.onDestroy();}
  @Override public void onRequestPermissionsResult(int c,String[] p,int[] r){super.onRequestPermissionsResult(c,p,r);
- if(c==12&&checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED)gps.setChecked(false);}
+ if(c==12&&checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED)gps.setChecked(false);
+ if(c==82){
+   boolean granted=r.length>0&&r[0]==PackageManager.PERMISSION_GRANTED;
+   if(granted&&smsApprovedAfterPermission){smsApprovedAfterPermission=false;sendSmsChipApproved();}
+   else{smsApprovedAfterPermission=false;status.setText("Envio por chip não autorizado. Use o SMS manual ou ligue 190");}
+ }}
 
  // =================== EventoSOS por Wi-Fi ====================
  EditText parentIp, parentKey;
@@ -103,7 +108,7 @@ public class MainActivity extends Activity {
    if(message.length()>650)message=message.substring(0,650);
    final String sosMessage=message+(gps.isChecked()?"\n"+loc():"");
    final String sosLevel=level.getSelectedItem().toString();
-   getPreferences(MODE_PRIVATE).edit().putString("wifi_ip",host).putString("wifi_secret",secret).apply();
+   saveWifiPair();
    status.setText(test?"Testando Wi-Fi e pareamento...":"Enviando EventoSOS ao app dos responsáveis...");
    new Thread(()->{
      try{
@@ -139,5 +144,79 @@ public class MainActivity extends Activity {
      }
    },"Chimpi-SOS-Sender").start();
  }
+
+
+ // =================== EventoSOS celular/SIM =====================
+ boolean smsApprovedAfterPermission=false;
+ void setupSmsChip(LinearLayout root){
+   title(root,"📱 EventoSOS por chip (Brasil e exterior)");
+   note(root,"Cadastre acima os telefones familiares com DDI: Brasil +55, Reino Unido +44. Só envie a números de familiares que autorizaram o recebimento");
+   note(root,"Usa SMS da operadora, não precisa de internet. Exige sinal de rede, chip/eSIM ativo e pode cobrar por mensagens internacionais ou divididas");
+   button(root,"🚨 SOS VIA CHIP PARA TODOS OS FAMILIARES",0xffc92b46).setOnClickListener(v->confirmSmsChip());
+   note(root,"Ao autorizar, o Android tentará enviar um SMS individual a cada familiar cadastrado, sem aguardar Wi-Fi. A entrega não é garantida");
+ }
+ java.util.ArrayList<String> validSmsRecipients(){
+   java.util.LinkedHashSet<String> phones=new java.util.LinkedHashSet<>();
+   for(EditText f:contacts){
+     String digits=f.getText().toString().trim().replaceAll("[^0-9+]","");
+     if(digits.matches("\\+\\d{10,15}")||digits.matches("\\d{10,13}"))
+       phones.add(digits);
+   }
+   return new java.util.ArrayList<>(phones);
+ }
+ void confirmSmsChip(){
+   save();
+   java.util.ArrayList<String> recipients=validSmsRecipients();
+   if(recipients.isEmpty()){
+     status.setText("Nenhum familiar válido cadastrado. Em emergência, ligue 190");
+     return;
+   }
+   String names=android.text.TextUtils.join("\n",recipients);
+   new AlertDialog.Builder(this).setTitle("Enviar SOS por SMS?")
+     .setMessage("Enviar para "+recipients.size()+" familiar(es):\n"+names
+       +"\n\nCada envio pode custar dinheiro, especialmente para números internacionais. O app não garante entrega nem que alguém ouviu o alarme")
+     .setPositiveButton("AUTORIZAR ENVIO",(dialog,which)->{
+       if(checkSelfPermission(Manifest.permission.SEND_SMS)!=PackageManager.PERMISSION_GRANTED){
+         smsApprovedAfterPermission=true;
+         requestPermissions(new String[]{Manifest.permission.SEND_SMS},82);
+       }else sendSmsChipApproved();
+     }).setNegativeButton("Cancelar",null).show();
+ }
+ void sendSmsChipApproved(){
+   if(checkSelfPermission(Manifest.permission.SEND_SMS)!=PackageManager.PERMISSION_GRANTED){
+     status.setText("Permissão de SMS não concedida. Use PREPARAR SMS ou ligue 190");return;
+   }
+   java.util.ArrayList<String> recipients=validSmsRecipients();
+   if(recipients.isEmpty()){status.setText("Cadastre familiares autorizados");return;}
+   String message=msg.getText().toString().trim();
+   if(message.isEmpty())message="Preciso de ajuda, por favor me ligue";
+   if(message.length()>350)message=message.substring(0,350);
+   String body="CHIMPI-SOS | NÍVEL: "+level.getSelectedItem().toString()
+     +"\nALERTA! SEU FILHO/A ESTÁ EM APUROS!"
+     +"\n"+message+"\n"+loc();
+   int accepted=0;
+   java.util.ArrayList<String> errors=new java.util.ArrayList<>();
+   try{
+     android.telephony.SmsManager sms=android.telephony.SmsManager.getDefault();
+     for(String phone:recipients){
+       try{
+         java.util.ArrayList<String> parts=sms.divideMessage(body);
+         if(parts.size()==1)sms.sendTextMessage(phone,null,body,null,null);
+         else sms.sendMultipartTextMessage(phone,null,parts,null,null);
+         accepted++;
+       }catch(Exception ex){errors.add(phone+" ("+ex.getClass().getSimpleName()+")");}
+     }
+   }catch(Exception ex){errors.add("Serviço SMS indisponível: "+ex.getClass().getSimpleName());}
+   status.setText("📲 Pedidos de envio SMS entregues ao Android: "+accepted+" de "+recipients.size()
+      +". NÃO é confirmação de entrega ao familiar"
+      +(errors.isEmpty()?"":"\nFalhas: "+android.text.TextUtils.join(", ",errors))
+      +"\nSe estiver em perigo imediato, ligue 190");
+ }
+ void saveWifiPair(){
+   if(parentIp==null||parentKey==null)return;
+   getPreferences(MODE_PRIVATE).edit().putString("wifi_ip",parentIp.getText().toString().trim())
+     .putString("wifi_secret",parentKey.getText().toString().trim()).apply();
+ }
+ @Override protected void onPause(){saveWifiPair();super.onPause();}
 
 }
