@@ -33,7 +33,7 @@ public class MainActivity extends Activity {
  title(root,"Família autorizada");
  for(int i=0;i<6;i++){EditText f=new EditText(this);f.setHint(kin[i]+" (DDD + telefone)");f.setInputType(InputType.TYPE_CLASS_PHONE);f.setSingleLine(true);f.setText(getPreferences(MODE_PRIVATE).getString("c"+i,""));contacts[i]=f;root.addView(f);}
  button(root,"💾 Salvar números",0xff2458e7).setOnClickListener(v->save());
- title(root,"Pedir ajuda");
+ title(root,"Pedir ajuda");setupWifi(root);
  button(root,"🆘 PREPARAR SMS",0xffc92b46).setOnClickListener(v->prepare());
  note(root,"IMPORTANTE: abre seu app de mensagens; é necessário conferir os destinatários e tocar em ENVIAR");
  hold=button(root,"✋ SEGURE 2s, DEPOIS SOLTE",0xff2458e7);
@@ -66,9 +66,78 @@ public class MainActivity extends Activity {
  Intent i=new Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+android.text.TextUtils.join(";",phones)));i.putExtra("sms_body",body);
  try{startActivity(i);status.setText("SMS apenas PREPARADO. Confirme os números e toque Enviar");}catch(Exception e){status.setText("Sem aplicativo de SMS. Em emergência, ligue 190");}}
  void count(){active=true;seconds=8;cancel.setVisibility(View.VISIBLE);run=new Runnable(){public void run(){if(!active)return;status.setText("Abrir SMS em "+seconds+" segundos");
- if(seconds--<=0){active=false;cancel.setVisibility(View.GONE);prepare();}else h.postDelayed(this,1000);}};h.post(run);}
+ if(seconds--<=0){active=false;cancel.setVisibility(View.GONE);sendWifi(false);}else h.postDelayed(this,1000);}};h.post(run);}
  void stop(){active=false;if(run!=null)h.removeCallbacks(run);if(cancel!=null)cancel.setVisibility(View.GONE);if(status!=null)status.setText("Cancelado, nenhuma mensagem enviada");}
  @Override protected void onDestroy(){stop();super.onDestroy();}
  @Override public void onRequestPermissionsResult(int c,String[] p,int[] r){super.onRequestPermissionsResult(c,p,r);
  if(c==12&&checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED)gps.setChecked(false);}
+
+ // =================== EventoSOS por Wi-Fi ====================
+ EditText parentIp, parentKey;
+ void setupWifi(LinearLayout root){
+   title(root,"📶 EventoSOS: Enviar por Wi-Fi");
+   note(root,"Conecte os 2 celulares na mesma rede Wi-Fi. No Chimpi Parents, ative o recebimento e copie IP e chave segura");
+   parentIp=new EditText(this);parentIp.setSingleLine(true);parentIp.setHint("IP dos responsáveis (ex: 192.168.1.10)");
+   parentIp.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+   parentIp.setText(getPreferences(MODE_PRIVATE).getString("wifi_ip",""));root.addView(parentIp);
+   parentKey=new EditText(this);parentKey.setSingleLine(true);parentKey.setHint("Chave de pareamento de 43 caracteres");
+   parentKey.setText(getPreferences(MODE_PRIVATE).getString("wifi_secret",""));root.addView(parentKey);
+   button(root,"🔌 TESTAR CONEXÃO WI-FI (sem alarme)",0xff2458e7).setOnClickListener(v->sendWifi(true));
+   button(root,"🚨 ENVIAR EVENTOSOS POR WI-FI",0xffc92b46).setOnClickListener(v->sendWifi(false));
+   note(root,"Confirmação do app dos responsáveis ≠ confirmação de leitura ou de que ouviram. Se não conectar, tente ligação 190 ou SMS");
+ }
+ void sendWifi(boolean test){
+   String host=parentIp.getText().toString().trim();
+   String secret=parentKey.getText().toString().trim();
+   if(!host.matches("(\\d{1,3}\\.){3}\\d{1,3}")){
+     status.setText("Insira o endereço IPv4 local do celular dos responsáveis");
+     return;
+   }
+   if(secret.length()<40){
+     status.setText("Digite a chave de pareamento exibida no Chimpi Parents");
+     return;
+   }
+   final String id=java.util.UUID.randomUUID().toString();
+   String message=msg.getText().toString().trim();
+   if(message.isEmpty())message="Preciso de ajuda! Entre em contato comigo";
+   if(message.length()>650)message=message.substring(0,650);
+   final String sosMessage=message+(gps.isChecked()?"\n"+loc():"");
+   final String sosLevel=level.getSelectedItem().toString();
+   getPreferences(MODE_PRIVATE).edit().putString("wifi_ip",host).putString("wifi_secret",secret).apply();
+   status.setText(test?"Testando Wi-Fi e pareamento...":"Enviando EventoSOS ao app dos responsáveis...");
+   new Thread(()->{
+     try{
+       android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+       android.net.Network nw=cm.getActiveNetwork();
+       android.net.NetworkCapabilities c=cm.getNetworkCapabilities(nw);
+       if(c==null||!c.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI))
+         throw new java.io.IOException("É necessário conectar o celular ao Wi-Fi");
+       java.net.InetAddress target=java.net.InetAddress.getByName(host);
+       if(!target.isSiteLocalAddress())throw new java.io.IOException("Use um IP local da rede Wi-Fi");
+       org.json.JSONObject obj=new org.json.JSONObject();
+       obj.put("id",id);obj.put("type",test?"TEST":"SOS");
+       obj.put("time",System.currentTimeMillis());
+       obj.put("level",sosLevel);
+       obj.put("message",sosMessage);
+       String payload=SosCrypto.encrypt(secret,obj);
+       try(java.net.Socket socket=new java.net.Socket()){
+         socket.connect(new java.net.InetSocketAddress(target,45881),5000);
+         socket.setSoTimeout(7000);
+         java.io.DataOutputStream out=new java.io.DataOutputStream(new java.io.BufferedOutputStream(socket.getOutputStream()));
+         java.io.DataInputStream in=new java.io.DataInputStream(new java.io.BufferedInputStream(socket.getInputStream()));
+         out.writeUTF(payload);out.flush();
+         String ack=in.readUTF();
+         if(!ack.equals((test?"TEST_OK:":"ACK:")+id))throw new java.io.IOException("Sem confirmação válida do responsável");
+       }
+       runOnUiThread(()->status.setText(test
+         ?"✅ Conexão de teste confirmada pelo app dos responsáveis"
+         :"✅ EventoSOS RECEBIDO pelo app dos responsáveis. A pessoa ainda precisa verificar o aviso"));
+     }catch(Exception err){
+       runOnUiThread(()->status.setText((test?"❌ Teste falhou":"❌ EventoSOS NÃO CONFIRMADO")
+         +"\n"+err.getClass().getSimpleName()
+         +"\nVerifique mesma rede, IP, chave e escuta ativa. Em perigo imediato, ligue 190 ou tente SMS"));
+     }
+   },"Chimpi-SOS-Sender").start();
+ }
+
 }
