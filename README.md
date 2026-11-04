@@ -23,3 +23,14 @@ O aplicativo pode agora **enviar** EventoSOS autenticado e criptografado por Wi-
 5. Ao receber o aviso, o responsável recebe uma notificação, vibração, alarme e fala “ALERTA! SEU FILHO OU FILHA ESTÁ EM APUROS!” se a síntese de voz estiver disponível
 
 A mensagem usa **AES-256-GCM** e o receptor confirma recebimento pela rede; isso **não garante** que um adulto viu ou ouviu. Requer **ambos na mesma rede local Wi-Fi** com o serviço dos responsáveis ativo. Sem internet pode funcionar somente dentro desta mesma rede, mas não funciona com parentes em outro estado ou outra rede Wi-Fi. Em perigo imediato, ligue 190 ou use outras formas confiáveis de contato.
+
+
+## Aviso de suporte
+
+O aplicativo compara a versão instalada com a prévia realmente publicada v1.1.0-preview.1 e usa o idioma do Android — português ou inglês como alternativa
+
+Antes de 04/11/2026 às 00h UTC o texto informa a aproximação do fim do suporte e, a partir desse instante, informa que versões anteriores não recebem mais atualizações de segurança
+
+Versões antigas que ainda não possuem o verificador precisam de uma atualização manual inicial pela página oficial de Releases
+
+Código em PR não é um novo APK publicado nem uma atualização já instalada

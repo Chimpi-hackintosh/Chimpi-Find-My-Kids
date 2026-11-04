@@ -23,6 +23,7 @@ public class MainActivity extends Activity {
  void dial(){try{startActivity(new Intent(Intent.ACTION_DIAL,Uri.parse("tel:190")));}catch(Exception e){Toast.makeText(this,"Ligue 190 por outro aparelho",1).show();}}
  @Override public void onCreate(Bundle state){super.onCreate(state);
  ScrollView sc=new ScrollView(this);LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(24,32,24,32);sc.addView(root);setContentView(sc);
+ SupportNotice.showIfRequired(this,BuildConfig.VERSION_NAME);
  title(root,"🐒 Chimpi Find My Kids");note(root,"PRÉVIA EXPERIMENTAL • Não substitui atendimento de emergência");
  button(root,"📞 LIGAR 190",0xffc92b46).setOnClickListener(v->dial());
  title(root,"O que está acontecendo?");
