@@ -29,3 +29,7 @@ Este APK é uma compilação de **teste debug**, não substitui ligações telef
 - Sem cobertura da operadora, chip habilitado e envio internacional, não há comunicação com o Reino Unido
 - O conteúdo enviado não é criptografado de ponta a ponta pela operadora, portanto evite detalhes sensíveis desnecessários
 - O recurso exige permissão sensível SEND_SMS, sujeita a regras estritas da Google Play
+
+## Prioridade de cuidador e atualização dos pais
+
+O primeiro contato local válido na ordem **Tia, Tio, Avó, Avô** recebe o SOS detalhado. Mãe e pai recebem apenas mensagem de andamento pendente. A mensagem **“familiar está ajudando”** só será gerada depois de a pessoa confirmar manualmente no aplicativo, e não é um comprovante externo de assistência. Se o cuidador não responder, os pais devem poder agir usando o aviso pendente. Entrega de SMS e recepção automática não são garantidas

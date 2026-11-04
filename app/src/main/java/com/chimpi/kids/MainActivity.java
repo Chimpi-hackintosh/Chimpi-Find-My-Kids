@@ -152,8 +152,8 @@ public class MainActivity extends Activity {
    title(root,"📱 EventoSOS por chip (Brasil e exterior)");
    note(root,"Cadastre acima os telefones familiares com DDI: Brasil +55, Reino Unido +44. Só envie a números de familiares que autorizaram o recebimento");
    note(root,"Usa SMS da operadora, não precisa de internet. Exige sinal de rede, chip/eSIM ativo e pode cobrar por mensagens internacionais ou divididas");
-   button(root,"🚨 SOS VIA CHIP PARA TODOS OS FAMILIARES",0xffc92b46).setOnClickListener(v->confirmSmsChip());
-   note(root,"Ao autorizar, o Android tentará enviar um SMS individual a cada familiar cadastrado, sem aguardar Wi-Fi. A entrega não é garantida");
+   button(root,"🚨 SOS PARA TIA + STATUS AOS PAIS",0xffc92b46).setOnClickListener(v->confirmSmsChip());
+   note(root,"Tia/tio/avó/avô recebe o SOS completo. Mãe e pai recebem somente: familiar acionado, aguardando confirmação. Sem garantia de entrega");
  }
  java.util.ArrayList<String> validSmsRecipients(){
    java.util.LinkedHashSet<String> phones=new java.util.LinkedHashSet<>();
@@ -164,17 +164,27 @@ public class MainActivity extends Activity {
    }
    return new java.util.ArrayList<>(phones);
  }
+
  void confirmSmsChip(){
    save();
-   java.util.ArrayList<String> recipients=validSmsRecipients();
-   if(recipients.isEmpty()){
-     status.setText("Nenhum familiar válido cadastrado. Em emergência, ligue 190");
-     return;
+   String caregiver="";
+   for(int index:new int[]{2,3,4,5}){
+     String phone=normalizedContact(index);
+     if(!phone.isEmpty()){caregiver=kin[index]+": "+phone;break;}
    }
-   String names=android.text.TextUtils.join("\n",recipients);
-   new AlertDialog.Builder(this).setTitle("Enviar SOS por SMS?")
-     .setMessage("Enviar para "+recipients.size()+" familiar(es):\n"+names
-       +"\n\nCada envio pode custar dinheiro, especialmente para números internacionais. O app não garante entrega nem que alguém ouviu o alarme")
+   if(caregiver.isEmpty()){
+     status.setText("Cadastre uma tia, tio, avó ou avô e tente novamente. Se for urgente, ligue 190");return;
+   }
+   String parentNumbers="";
+   for(int index:new int[]{0,1}){
+     String phone=normalizedContact(index);
+     if(!phone.isEmpty())parentNumbers+=kin[index]+": "+phone+"\n";
+   }
+   final String names="SOS detalhado -> "+caregiver+"\n\nPais (somente status, sem detalhes):\n"
+      +(parentNumbers.isEmpty()?"Nenhum pai cadastrado":parentNumbers);
+   new AlertDialog.Builder(this)
+     .setTitle("Enviar EventoSOS para a família?")
+     .setMessage(names+"\nConfirme quem receberá. SMS para exterior pode ter custo. Recebimento e ajuda NÃO são garantidos")
      .setPositiveButton("AUTORIZAR ENVIO",(dialog,which)->{
        if(checkSelfPermission(Manifest.permission.SEND_SMS)!=PackageManager.PERMISSION_GRANTED){
          smsApprovedAfterPermission=true;
@@ -182,35 +192,71 @@ public class MainActivity extends Activity {
        }else sendSmsChipApproved();
      }).setNegativeButton("Cancelar",null).show();
  }
+ String normalizedContact(int index){
+   if(index<0||index>=contacts.length)return "";
+   String phone=contacts[index].getText().toString().trim().replaceAll("[^0-9+]","");
+   if(phone.matches("\\+\\d{10,15}")||phone.matches("\\d{10,13}"))return phone;
+   return "";
+ }
+ // Família recebe apenas o andamento; cuidador local recebe o SOS detalhado
  void sendSmsChipApproved(){
    if(checkSelfPermission(Manifest.permission.SEND_SMS)!=PackageManager.PERMISSION_GRANTED){
-     status.setText("Permissão de SMS não concedida. Use PREPARAR SMS ou ligue 190");return;
+     status.setText("Permissão de SMS não concedida. Ligue 190 se estiver em perigo");return;
    }
-   java.util.ArrayList<String> recipients=validSmsRecipients();
-   if(recipients.isEmpty()){status.setText("Cadastre familiares autorizados");return;}
+   int caregiver=-1;
+   for(int index:new int[]{2,3,4,5}){
+     if(!normalizedContact(index).isEmpty()){caregiver=index;break;}
+   }
+   if(caregiver<0){
+     status.setText("Cadastre uma tia, tio, avó ou avô como cuidador principal. Sem isso, contate seus pais ou ligue 190");
+     return;
+   }
+   String primary=normalizedContact(caregiver);
+   java.util.LinkedHashSet<String> parentPhones=new java.util.LinkedHashSet<>();
+   for(int index:new int[]{0,1}){
+     String phone=normalizedContact(index);
+     if(!phone.isEmpty()&&!phone.equals(primary))parentPhones.add(phone);
+   }
+   String incident=java.util.UUID.randomUUID().toString().substring(0,8).toUpperCase(java.util.Locale.US);
    String message=msg.getText().toString().trim();
-   if(message.isEmpty())message="Preciso de ajuda, por favor me ligue";
-   if(message.length()>350)message=message.substring(0,350);
-   String body="CHIMPI-SOS | NÍVEL: "+level.getSelectedItem().toString()
-     +"\nALERTA! SEU FILHO/A ESTÁ EM APUROS!"
-     +"\n"+message+"\n"+loc();
-   int accepted=0;
-   java.util.ArrayList<String> errors=new java.util.ArrayList<>();
+   if(message.isEmpty())message="Preciso de ajuda! Ligue para mim";
+   if(message.length()>240)message=message.substring(0,240);
+   String detail="CHIMPI-SOS | NÍVEL: "+level.getSelectedItem().toString()
+       +"\nID: "+incident+"\nPreciso de ajuda: "+message+"\n"+loc()
+       +"\nSe houver perigo imediato, ligue 190";
+   String pending="CHIMPI-STATUS | AGUARDANDO"
+       +"\nID: "+incident
+       +"\nUm familiar foi acionado para ajudar a criança"
+       +"\nA ajuda AINDA NÃO foi confirmada"
+       +"\nConfira diretamente com a criança";
+   int requested=0;
+   StringBuilder errors=new StringBuilder();
    try{
      android.telephony.SmsManager sms=android.telephony.SmsManager.getDefault();
-     for(String phone:recipients){
+     // SOS completo somente ao cuidador local
+     try{
+       sendSmsParts(sms,primary,detail);
+       requested++;
+     }catch(Exception ex){errors.append("Não foi possível encaminhar ao familiar prioritário; ");}
+     // Pais recebem APENAS status, nunca o relato detalhado
+     for(String destination:parentPhones){
        try{
-         java.util.ArrayList<String> parts=sms.divideMessage(body);
-         if(parts.size()==1)sms.sendTextMessage(phone,null,body,null,null);
-         else sms.sendMultipartTextMessage(phone,null,parts,null,null);
-         accepted++;
-       }catch(Exception ex){errors.add(phone+" ("+ex.getClass().getSimpleName()+")");}
+         sendSmsParts(sms,destination,pending);requested++;
+       }catch(Exception ex){errors.append("Falha ao solicitar envio para um dos pais; ");}
      }
-   }catch(Exception ex){errors.add("Serviço SMS indisponível: "+ex.getClass().getSimpleName());}
-   status.setText("📲 Pedidos de envio SMS entregues ao Android: "+accepted+" de "+recipients.size()
-      +". NÃO é confirmação de entrega ao familiar"
-      +(errors.isEmpty()?"":"\nFalhas: "+android.text.TextUtils.join(", ",errors))
-      +"\nSe estiver em perigo imediato, ligue 190");
+   }catch(Exception ex){errors.append("Rede SMS indisponível ou chip não configurado");}
+   status.setText("EventoSOS "+incident+"\nPedidos de SMS aceitos pelo Android: "+requested
+       +" de "+(parentPhones.size()+1)
+       +"\nO cuidador recebe o SOS; seus pais recebem somente o status PENDENTE"
+       +"\nNenhuma entrega ou ajuda foi confirmada"
+       +(errors.length()==0?"":"\n"+errors.toString())
+       +"\nSe houver perigo imediato, ligue 190");
+ }
+ void sendSmsParts(android.telephony.SmsManager sms,String number,String body){
+   java.util.ArrayList<String> parts=sms.divideMessage(body);
+   if(parts==null||parts.isEmpty())throw new IllegalArgumentException("Mensagem vazia");
+   if(parts.size()==1)sms.sendTextMessage(number,null,body,null,null);
+   else sms.sendMultipartTextMessage(number,null,parts,null,null);
  }
  void saveWifiPair(){
    if(parentIp==null||parentKey==null)return;

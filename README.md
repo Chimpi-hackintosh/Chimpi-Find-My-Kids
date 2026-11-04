@@ -35,3 +35,13 @@ A mensagem usa **AES-256-GCM** e o receptor confirma recebimento pela rede; isso
 Esta função **não garante entrega**, não confirma que algum adulto leu e não aciona a polícia. SMS internacionais e multipartes podem ser cobrados pela operadora. Se o SMS não funcionar, ligue para um adulto ou 190 em emergências no Brasil
 
 **Compatibilidade**: apps Android com permissões diretas de SMS sofrem restrições de distribuição no Google Play e precisam de revisão antes de lançamento público na loja
+
+## 🚨 Quem recebe o quê? v1.3.0-preview.1
+
+- **Tia / cuidador local**: recebe `CHIMPI-SOS` com o relato e a localização opcional
+- **Mãe e pai**: recebem somente `CHIMPI-STATUS | AGUARDANDO`, com o ID do episódio e o aviso de que um familiar foi acionado, mas **ainda não confirmou que está ajudando**
+- A tia usa o Chimpi Parents em modo **Cuidador** e toca em **Estou ajudando** para mandar uma atualização `CHIMPI-STATUS | CONFIRMADO` aos números dos pais que ela cadastrou
+- O app não verifica entrega da operadora e não deve afirmar que a tia está ajudando sem confirmação humana
+- Para garantir uma alternativa em emergências, familiares devem conversar diretamente; o Chimpi não substitui serviços de emergência
+
+A preferência por status resumido para os pais não oculta a existência de uma emergência: eles recebem o aviso de ajuda pendente. SMS internacional depende da operadora e pode falhar
