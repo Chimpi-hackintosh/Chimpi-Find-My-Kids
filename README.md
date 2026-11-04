@@ -45,3 +45,7 @@ Esta função **não garante entrega**, não confirma que algum adulto leu e nã
 - Para garantir uma alternativa em emergências, familiares devem conversar diretamente; o Chimpi não substitui serviços de emergência
 
 A preferência por status resumido para os pais não oculta a existência de uma emergência: eles recebem o aviso de ajuda pendente. SMS internacional depende da operadora e pode falhar
+
+### Ajuste 1.3.1
+
+O botão SMS manual prepara a mensagem completa **somente para o cuidador local**, sem incluir pai ou mãe. Para avisos de andamento aos pais, use **SOS PARA TIA + STATUS AOS PAIS**. Se o pedido de SMS para o cuidador falhar ao ser entregue ao Android, os pais receberão um status de falha, e não uma falsa confirmação de acionamento. A operadora ainda pode falhar após o envio inicial

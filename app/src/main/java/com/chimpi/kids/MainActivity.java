@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
  for(int i=0;i<6;i++){EditText f=new EditText(this);f.setHint(kin[i]+" (DDD + telefone)");f.setInputType(InputType.TYPE_CLASS_PHONE);f.setSingleLine(true);f.setText(getPreferences(MODE_PRIVATE).getString("c"+i,""));contacts[i]=f;root.addView(f);}
  button(root,"💾 Salvar números",0xff2458e7).setOnClickListener(v->save());
  title(root,"Pedir ajuda");setupSmsChip(root);setupWifi(root);
- button(root,"🆘 PREPARAR SMS",0xffc92b46).setOnClickListener(v->prepare());
+ button(root,"🆘 PREPARAR SMS MANUAL PARA A TIA",0xffc92b46).setOnClickListener(v->prepare());
  note(root,"IMPORTANTE: abre seu app de mensagens; é necessário conferir os destinatários e tocar em ENVIAR");
  hold=button(root,"✋ SEGURE 2s, DEPOIS SOLTE",0xff2458e7);
  hold.setOnTouchListener((v,e)->{if(e.getActionMasked()==0){pressed=SystemClock.elapsedRealtime();hold.setText("Solte para iniciar SOS");return true;}
@@ -58,13 +58,33 @@ public class MainActivity extends Activity {
  if(p==null||System.currentTimeMillis()-p.getTime()>900000)return "Localização recente indisponível";
  return String.format(Locale.US,"Localização aproximada: https://maps.google.com/?q=%.6f,%.6f",p.getLatitude(),p.getLongitude());
  }catch(Exception e){return "Localização indisponível";}}
- void prepare(){save();LinkedHashSet<String> phones=new LinkedHashSet<>();
- for(EditText t:contacts){String s=t.getText().toString().replaceAll("[^+0-9]","");if(s.matches("\\+?\\d{10,13}"))phones.add(s);}
- if(phones.isEmpty()){status.setText("Cadastre um familiar. Em urgência, ligue 190");return;}
- String text=msg.getText().toString().trim();if(text.isEmpty())text="Preciso de ajuda. Entre em contato comigo";
- String body="CHIMPI-SOS | NÍVEL: "+level.getSelectedItem().toString()+"\nMensagem: "+text+"\n"+loc()+"\nEm emergência, ligue 190";
- Intent i=new Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+android.text.TextUtils.join(";",phones)));i.putExtra("sms_body",body);
- try{startActivity(i);status.setText("SMS apenas PREPARADO. Confirme os números e toque Enviar");}catch(Exception e){status.setText("Sem aplicativo de SMS. Em emergência, ligue 190");}}
+
+ // SMS manual: o conteúdo detalhado só pode ser enviado à cuidadora local
+ void prepare(){
+   save();
+   String caregiver="";
+   for(int i:new int[]{2,3,4,5}){
+     String number=normalizedContact(i);
+     if(!number.isEmpty()){caregiver=number;break;}
+   }
+   if(caregiver.isEmpty()){
+     status.setText("Cadastre um cuidador local (tia, tio, avó ou avô). Para emergência ligue 190");
+     return;
+   }
+   String message=msg.getText().toString().trim();
+   if(message.isEmpty())message="Preciso de ajuda. Entre em contato comigo";
+   String body="CHIMPI-SOS | NÍVEL: "+level.getSelectedItem().toString()
+       +"\nID: "+java.util.UUID.randomUUID().toString().substring(0,8).toUpperCase(java.util.Locale.US)
+       +"\nMensagem: "+message+"\n"+loc()+"\nEm emergência, ligue 190";
+   Intent intent=new Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+caregiver));
+   intent.putExtra("sms_body",body);
+   try{
+     startActivity(intent);
+     status.setText("SMS completo preparado SOMENTE para o cuidador. CONFIRA e toque ENVIAR no app SMS. Pais não recebem a descrição nesta opção");
+   }catch(Exception ex){
+     status.setText("Sem aplicativo de mensagens. Em emergência, ligue 190");
+   }
+ }
  void count(){active=true;seconds=8;cancel.setVisibility(View.VISIBLE);run=new Runnable(){public void run(){if(!active)return;status.setText("Abrir SMS em "+seconds+" segundos");
  if(seconds--<=0){active=false;cancel.setVisibility(View.GONE);sendWifi(false);}else h.postDelayed(this,1000);}};h.post(run);}
  void stop(){active=false;if(run!=null)h.removeCallbacks(run);if(cancel!=null)cancel.setVisibility(View.GONE);if(status!=null)status.setText("Cancelado, nenhuma mensagem enviada");}
@@ -234,14 +254,20 @@ public class MainActivity extends Activity {
    try{
      android.telephony.SmsManager sms=android.telephony.SmsManager.getDefault();
      // SOS completo somente ao cuidador local
+     boolean caretakerRequested=false;
      try{
        sendSmsParts(sms,primary,detail);
        requested++;
-     }catch(Exception ex){errors.append("Não foi possível encaminhar ao familiar prioritário; ");}
+       caretakerRequested=true;
+     }catch(Exception ex){errors.append("Falha ao solicitar envio para o cuidador local; ");}
+     String parentMessage=caretakerRequested?pending:
+       ("CHIMPI-STATUS | FALHA\nID: "+incident
+        +"\nNão foi possível solicitar SOS para o cuidador"
+        +"\nEntre em contato imediatamente com a criança");
      // Pais recebem APENAS status, nunca o relato detalhado
      for(String destination:parentPhones){
        try{
-         sendSmsParts(sms,destination,pending);requested++;
+         sendSmsParts(sms,destination,parentMessage);requested++;
        }catch(Exception ex){errors.append("Falha ao solicitar envio para um dos pais; ");}
      }
    }catch(Exception ex){errors.append("Rede SMS indisponível ou chip não configurado");}
