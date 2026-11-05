@@ -19,3 +19,21 @@ Este APK é uma compilação de **teste debug**, não substitui ligações telef
 - A chave fica salva no armazenamento privado do aplicativo de testes; não há recuperação segura nem hardware-backed keystore nesta versão
 - Envio SOS automático para polícia NÃO implementado
 - Não dependa apenas deste software para emergências
+
+## SMS por chip (prévia 1.2)
+
+- A criança pode enviar SMS a até seis números de confiança cadastrados, somente depois de confirmação explícita na interface
+- O SMS pode custar dinheiro e cada fragmento de uma mensagem longa pode ser cobrado separadamente
+- A API de envio não certifica que a operadora entregou a mensagem nem que uma pessoa recebeu/visualizou
+- Android com mais de um chip pode precisar de configuração do SIM padrão para SMS
+- Sem cobertura da operadora, chip habilitado e envio internacional, não há comunicação com o Reino Unido
+- O conteúdo enviado não é criptografado de ponta a ponta pela operadora, portanto evite detalhes sensíveis desnecessários
+- O recurso exige permissão sensível SEND_SMS, sujeita a regras estritas da Google Play
+
+## Prioridade de cuidador e atualização dos pais
+
+O primeiro contato local válido na ordem **Tia, Tio, Avó, Avô** recebe o SOS detalhado. Mãe e pai recebem apenas mensagem de andamento pendente. A mensagem **“familiar está ajudando”** só será gerada depois de a pessoa confirmar manualmente no aplicativo, e não é um comprovante externo de assistência. Se o cuidador não responder, os pais devem poder agir usando o aviso pendente. Entrega de SMS e recepção automática não são garantidas
+
+### Ajuste de emergência 1.3.1
+
+A preparação manual de SMS detalhado restringe destinatário ao contato cuidador local. Não há confirmação de entrega. Quando falha ao encaminhar SMS de cuidador no Android, os pais são avisados de que o pedido falhou, caso o próprio SMS de status funcione. O app não interpreta aceitar o pedido de envio como confirmação de recebimento ou ajuda
