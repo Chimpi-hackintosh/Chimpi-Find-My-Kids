@@ -49,3 +49,14 @@ A preferência por status resumido para os pais não oculta a existência de uma
 ### Ajuste 1.3.1
 
 O botão SMS manual prepara a mensagem completa **somente para o cuidador local**, sem incluir pai ou mãe. Para avisos de andamento aos pais, use **SOS PARA TIA + STATUS AOS PAIS**. Se o pedido de SMS para o cuidador falhar ao ser entregue ao Android, os pais receberão um status de falha, e não uma falsa confirmação de acionamento. A operadora ainda pode falhar após o envio inicial
+
+
+## Aviso de suporte
+
+O aplicativo compara a versão instalada com a prévia publicada v1.3.1-preview.1 e detecta o idioma do Android, usando português ou inglês como alternativa
+
+Após 04/11/2026 às 00h UTC, versões anteriores informam que não recebem mais atualizações de segurança e apontam somente para a Release oficial
+
+Versões antigas sem o verificador precisam de uma atualização manual inicial
+
+Código neste PR não é um APK novo, não atualiza instalações existentes e não publica Release
