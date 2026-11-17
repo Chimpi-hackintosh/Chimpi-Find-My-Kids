@@ -2,7 +2,9 @@
 
 **Prévia experimental do app infantil Android**
 
-APK de testes em [Releases](../../releases) após compilação automática
+APK de teste em [Releases](../../releases) somente após publicação manual autorizada; pushes e pull requests geram apenas artefatos do Actions
+
+O workflow publica uma prévia somente em uma execução manual com `publish_release=true`; por padrão, o build apenas gera um artefato
 
 Funções: mensagem livre, 3 níveis de SOS, até 6 contatos familiares, SMS preparado manualmente, localização opcional, contagem cancelável e referências de delegacias
 
